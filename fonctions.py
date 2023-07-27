@@ -6,7 +6,7 @@ URL_HOME = "https://books.toscrape.com/"
 def getAllCategoriesTitles(url:str)-> dict:
     """
     Cette fonction permet de récuper les titres et les liens de chaque catégories de la page d'accueil.
-    Elle prend en paramètre une variable avec le contenu d'une page html parsée.
+    Elle prend en paramètre une url.
     Elle retourne 1 dictionnaire avec les catégories comme clefs et les urls des catégories comme valeurs
 
     """ 
@@ -28,6 +28,7 @@ def getAllCategoriesTitles(url:str)-> dict:
     tab_links = [url+e['href'] for e in ul_category.find_all('a')]
 
     dictionnaire = {tab_titles[i]:tab_links[i] for i in range(len(tab_links))}
+
     return dictionnaire
 
 
@@ -57,14 +58,13 @@ def create_categories_excel_files(directory_categories: str, dic: dict)-> bool:
 
 def image_download(url_image, article_name, image_dir):
     reponse = requests.get(url_image)
-
+    
     if reponse.status_code == 200:
-        salt = str(random.randint(0,100))
         article_name = re.sub('[^a-zA-Z]+', '', article_name).lower()
-        article_name = salt+article_name
+        salt = random.randint(0,100)
         if len(article_name) > 40:
-            article_name = article_name[0:30]+salt
-        f = open(f'Categories/{image_dir}/{article_name}.jpg', 'wb')
+            article_name = article_name[0:30]
+        f = open(f'Categories/{image_dir}/{article_name}-{salt}.jpg', 'wb')
         f.write(reponse.content)
         f.close()
         print(f"Téléchargement de l'image du livre {article_name} terminée.")
