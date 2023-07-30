@@ -1,5 +1,7 @@
 # Environnement virtuel
 /env
+# Categories
+/Categories
 
 # Pycache
 /__pycache__

@@ -1,15 +1,23 @@
 from fonctions import *
 
-    
 
-# lancement du programme
-dictionnary_categorie_name_and_url = getAllCategoriesTitles(URL_HOME)
+# création d'un dictionnaire contenant les noms des catagories et leurs liens
+dictionnary_categories_name_and_url = getAllCategoriesTitles(URL_HOME)
+
+print(dictionnary_categories_name_and_url)
 
 # création du dossier "Catégorie" et des fichiers excels pour chaque catégorie
-create_categories_excel_files("Categories", dictionnary_categorie_name_and_url)
+try:
+    os.mkdir("Categories")
 
-# création du dictionnaire contenant les catégories avec les urls pour chaque livre
-dictionnary_categories_and_all_urls_articles = get_links_articles_by_categories(dictionnary_categorie_name_and_url)
+except FileExistsError:
+    print("Le dossier existe déjà.")
+
+create_excel_files_by_categories_names("Categories", dictionnary_categories_name_and_url)
+
+# création du dictionnaire contenant les urls des livres par catégories
+dictionnary_all_books_urls_by_category = get_links_articles_by_categories(dictionnary_categories_name_and_url)
+
 
 # impression des données dans les fichiers excels et téléchargements des images
-save_data_by_categorie(dictionnary_categories_and_all_urls_articles)
+save_data_by_categorie(dictionnary_all_books_urls_by_category)
