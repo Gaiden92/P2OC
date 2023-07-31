@@ -197,7 +197,7 @@ def get_informations_book(book_url):
 
     dictionnary_informations_book["Nom"]           = article_name
     dictionnary_informations_book["Note"]          = rate
-    dictionnary_informations_book["Description"]   = strip_description
+    dictionnary_informations_book["Description"]   = description
     for data in informations_table:
         header = data.get_text(",", True).split(",")
         if len(header) > 1:
