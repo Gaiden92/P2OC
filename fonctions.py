@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import requests, openpyxl, os, re, openpyxl.styles, random
 from openpyxl.styles import Alignment, Font
 
+
 URL_HOME = "https://books.toscrape.com/"
 
 def getAllCategoriesTitles(url:str)-> dict:
@@ -54,54 +55,17 @@ def create_excel_files_by_categories_names(folder_categories_name: str, dictionn
     nb_categories = len(dictionnary_categories_names_and_url)
     counter = 0
     for categorie_name in dictionnary_categories_names_and_url.keys():
-        fichier_excel = openpyxl.Workbook()
-        fichier_excel.save((f"{folder_categories_name}/{categorie_name}.xlsx"))
+        fichier_excel = open(f"{folder_categories_name}/{categorie_name}.csv", "w")
+        fichier_excel.close()
         counter += 1
         print(f"Création du fichier {categorie_name}. {counter}/{nb_categories}")
 
-    return True if counter == nb_categories else False
+    if counter == nb_categories:
+        return True
+    else:
+        return False
 
 
-def get_informations_book(book_url):
-
-    requete = requests.get(book_url)
-    requete.encoding = requete.apparent_encoding
-
-    soup = BeautifulSoup(requete.text, "html.parser")
-
-    # titre
-    article_name = soup.h1.text
-
-    # récuperation des notes
-    block_article = soup('div', class_="product_main")
-    for element in block_article:
-        rate = element.select_one('p[class*="star-rating"]')['class'][1]
-
-    # description
-    description = "aucune description" if not soup.find("div", id="product_description") else soup.find("div", id="product_description").find_next('p').text
-
-    # tableau infos
-    informations_table = soup.find("table", class_="table table-striped")
-
-
-    # image
-    bloc_image = soup.find('div', id="product_gallery")
-    image_url = bloc_image.div.div.div.img['src'].replace("../../", URL_HOME)
-
-
-    # création dictionnaire
-    dictionnary_informations_book = {}
-
-    dictionnary_informations_book["Nom"]           = article_name
-    dictionnary_informations_book["Note"]          = rate
-    dictionnary_informations_book["Description"]   = description
-    for e in informations_table:
-        info = e.get_text(",", True).split(",")
-        if len(info) > 1:
-            dictionnary_informations_book[info[0]] = info[1]
-    dictionnary_informations_book["Image"]         = image_url
-
-    return dictionnary_informations_book
 
 def is_many_pages(soup:object)->bool:
     """
@@ -172,6 +136,72 @@ def image_download(url_image, article_name, image_folder):
         return True
     else:
         print(f"ERREUR : {reponse.status_code}")
+
+
+def get_informations_book(book_url):
+    """
+    Cette fonction permet de récuperer les informations d'un livre à partir de son url.
+    Elle prend en paramètre l'url du livre en question.
+    Elle retourne ces informations dans un dictionnaire
+    
+    """
+    requete = requests.get(book_url)
+    requete.encoding = requete.apparent_encoding
+
+    soup = BeautifulSoup(requete.text, "html.parser")
+
+    # titre
+    article_name = soup.h1.text
+
+    # récuperation des notes
+    block_article = soup('div', class_="product_main")
+    for informations in block_article:
+        rate = informations.select_one('p[class*="star-rating"]')['class'][1]
+
+    match rate:
+        case "One":
+            rate = "1"
+        case "Two":
+            rate = "2"
+        case "Three":
+            rate = "3"
+        case "Four":
+            rate = "4"
+        case "Five":
+            rate = "5"
+        case _:
+            rate = "aucune note"
+
+    # description
+    if not soup.find("div", id="product_description"):
+        description = "aucune description" 
+    else:
+        description = soup.find("div", id="product_description").find_next('p').text
+
+    # tableau infos
+    informations_table = soup.find("table", class_="table table-striped")
+
+
+    # image
+    bloc_image = soup.find('div', id="product_gallery")
+    image_url = bloc_image.div.div.div.img['src'].replace("../../", URL_HOME)
+
+
+    # création dictionnaire
+    dictionnary_informations_book = {}
+
+    dictionnary_informations_book["Nom"]           = article_name
+    dictionnary_informations_book["Note"]          = rate
+    dictionnary_informations_book["Description"]   = description
+    for data in informations_table:
+        info = data.get_text(",", True).split(",")
+        if len(info) > 1:
+            dictionnary_informations_book[info[0]] = info[1]
+    dictionnary_informations_book["Image"]         = image_url
+
+    return dictionnary_informations_book
+
+
 
 def save_data_by_categorie(dict_url:dict):
     os.makedirs(f"Categories/Images", exist_ok=True)
