@@ -6,8 +6,8 @@ URL_HOME = "https://books.toscrape.com/"
 
 def getAllCategoriesTitles(url:str)-> dict:
     """
-    Cette fonction permet de récuper les titres et les liens de chaque catégories de la page d'accueil.
-    Elle prend en paramètre une url.
+    Cette fonction permet de récuperer les titres et les liens de chaque catégories de la page d'accueil.
+    Elle prend en paramètre l'url de la page d'acceuil.
     Elle retourne un dictionnaire avec les catégories comme clefs et les urls des catégories comme valeurs
 
     """ 
@@ -15,21 +15,29 @@ def getAllCategoriesTitles(url:str)-> dict:
     CONTENT_BODY_HOME = requests.get(url).text
     reponse = requests.get(url)
 
-
     soup = BeautifulSoup(CONTENT_BODY_HOME, "html.parser")
-    menu_nav_categories = soup.find("ul", class_="nav nav-list")
 
+    # récupération du menu "catégories"
+    menu_nav_categories = soup.find("ul", class_="nav nav-list")
     ul_category = menu_nav_categories.li.ul
 
     # récuperation des titres
-    tab_titles = [ ul_category.li.a.getText('',True) for ul_category.li.a in ul_category if ul_category.li.a.getText('',True) != ""]
-
+    tab_titles = []
+    category_title = ul_category.li.a
+    for category_title in ul_category:
+        category_title_strip = category_title.getText('',True)
+        if not category_title_strip == "":
+            tab_titles.append(category_title_strip)
 
     #récupération des liens
-    tab_links = [url+e['href'] for e in ul_category.find_all('a')]
+    tab_links = []
+    all_tag_a = ul_category.find_all('a')
+    for tag_a in all_tag_a:
+        link = url+tag_a['href']
+        tab_links.append(link)
 
     # création du dictionnaire
-    dictionnary = {tab_titles[i]:tab_links[i] for i in range(len(tab_links))}
+    dictionnary = dict(zip(tab_titles,tab_links))
 
     return dictionnary
 
