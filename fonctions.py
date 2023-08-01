@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
-import requests, openpyxl, os, re, openpyxl.styles, random
-from openpyxl.styles import Alignment, Font
+import requests, os
+import csv
 
 
 URL_HOME = "https://books.toscrape.com/"
@@ -38,7 +38,7 @@ def getAllCategoriesTitles(url:str)-> dict:
         tab_links.append(link)
 
     # création du dictionnaire
-    dictionnary = dict(zip(tab_titles[0:2],tab_links[0:2]))
+    dictionnary = dict(zip(tab_titles,tab_links))
 
     return dictionnary
 
@@ -55,8 +55,8 @@ def create_excel_files_by_categories_names(folder_categories_name: str, dictionn
     nb_categories = len(dictionnary_categories_names_and_url)
     counter = 0
     for categorie_name in dictionnary_categories_names_and_url.keys():
-        file = openpyxl.Workbook()
-        file.save(f"{folder_categories_name}/{categorie_name}.xlsx")
+        file = open(f"{folder_categories_name}/{categorie_name}.csv", "w")
+        file.close()
         counter += 1
         print(f"Création du fichier {categorie_name}. {counter}/{nb_categories}")
 
@@ -131,11 +131,7 @@ def image_download(url_image, article_name, image_folder):
     reponse = requests.get(url_image)
     
     if reponse.status_code == 200:
-        article_name = re.sub('[^a-zA-Z]+', '', article_name).lower()
-        salt = random.randint(0,100)
-        if len(article_name) > 40:
-            article_name = article_name[0:30]
-        f = open(f'Categories/{image_folder}/{article_name}-{salt}.jpg', 'wb')
+        f = open(f'Categories/{image_folder}/{url_image[-36:]}', 'wb')
         f.write(reponse.content)
         f.close()
         print(f"Téléchargement de l'image du livre {article_name} terminée.")
@@ -168,35 +164,44 @@ def get_rates(a_block_informations_of_book:list)->str:
             rate = "aucune note"
     return rate
 
-def generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url)->dict:
+def generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url, book_category,book_url)->dict:
     dictionnary = {}
 
+    dictionnary["Url produit"]   = book_url
     dictionnary["Nom"]           = article_name
-    dictionnary["Note"]          = rate
-    dictionnary["Description"]   = description
+    
     for data in informations_table:
+
         header = data.get_text(",", True).split(",")
+        
         if len(header) > 1:
             match header[0]:
+                case "Tax":
+                    continue
+                case "Number of reviews":
+                    continue
                 case "Price (excl. tax)":
-                    price_exclude_tax = header[0].replace('Price' ,"Price (£) ")
+                    price_exclude_tax = header[0].replace('Price' ,"Price (£)")
                     dictionnary[price_exclude_tax] = header[1].removeprefix("£")
                 case "Price (incl. tax)":
-                    price_include_tax = header[0].replace('Price' ,"Price (£) ")
-                    dictionnary[price_include_tax] = header[1].removeprefix("£")
-                case "Tax":
-                    tax = header[0] + " (£)"
-                    dictionnary[tax] = header[1].removeprefix("£")
+                    price_include_tax = header[0].replace('Price' ,"Price (£)")
+                    dictionnary[price_include_tax] = header[1].removeprefix("£")                    
                 case "Availability":
                     number_book_in_stock = header[1].removeprefix("In stock (").removesuffix(" available)")
                     dictionnary[header[0]] = number_book_in_stock
+            
+
                 case _:
                     dictionnary[header[0]] = header[1]
+    dictionnary["Description"]   = description
+    dictionnary["Catégorie"]     = book_category
+    dictionnary["Note"]          = rate
     dictionnary["Image"]         = image_url
+
 
     return dictionnary
 
-def get_informations_book(book_url):
+def get_informations_book(book_url, book_category):
     """
     Cette fonction permet de récuperer les informations d'un livre à partir de son url.
     Elle prend en paramètre l'url du livre en question.
@@ -224,13 +229,20 @@ def get_informations_book(book_url):
 
     # tableau infos
     informations_table = soup.find("table", class_="table table-striped")
+    
 
     # image
     bloc_image = soup.find('div', id="product_gallery")
     image_url = bloc_image.div.div.div.img['src'].replace("../../", URL_HOME)
 
+    # url du produit
+    product_page_url = book_url
+
+    # catégorie du livre
+    category = book_category
+
     # création dictionnaire
-    dictionnary_informations_book = generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url)
+    dictionnary_informations_book = generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url, category, product_page_url)
 
     return dictionnary_informations_book
 
@@ -245,62 +257,29 @@ def save_data_by_categorie(dict_url:dict):
         
         for url in liste_url:
             print(f"récupération infos par livres de la catégorie {categorie} en cours...")
-            liste_infos_articles_categorie.append(get_informations_book(url))
-
-
-        print(f"impression des données de la catégorie {categorie} en cours ...")
-        fichier = openpyxl.load_workbook(f"Categories/{categorie}.xlsx")
-        sheet = fichier.active
-
-        row = 2
+            liste_infos_articles_categorie.append(get_informations_book(url, categorie))
         
-        for i in range(len(liste_infos_articles_categorie)):
-            coll = 1
-            for keys, values in liste_infos_articles_categorie[i].items():
-                if keys == "Image":
-                    url_img = liste_infos_articles_categorie[i]['Image']
-                    name_img = liste_infos_articles_categorie[i]['Nom']
-                    image_download(url_img, name_img,path_img)
+        print(f"impression des données de la catégorie {categorie} en cours ...")
 
-                sheet.cell(1, coll).font = Font(size = 20, bold = True, vertAlign= "baseline")
-                sheet.cell(1, coll).alignment = Alignment(horizontal="center")
-                sheet.cell(1, coll).value = keys
+        for dictionnaire in liste_infos_articles_categorie:
+            with open(f'Categories/{categorie}.csv', 'w', encoding='utf-8', newline='') as f:
+                fieldnames = dictionnaire.keys()
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                [writer.writerow(dictionnary) for dictionnary in liste_infos_articles_categorie]
+                # for dictionnary in liste_infos_articles_categorie:
+                #     writer.writerow(dictionnary)
 
-                
-                sheet.cell(row,coll).value = values
-                sheet.cell(row,coll).alignment = Alignment(horizontal="left")
-
-                if keys == "Description":
-                    sheet.cell(row,coll).alignment = Alignment(horizontal="left")
-
-                coll+=1
-                
-            row+=1
-
-            # Gestion de la largeur des colonnes
-            for col in sheet.columns:
-                max_length = 0
-                column = col[0].column_letter
-                for cell in col:
-                    try: 
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                
-                if column == "A" or column == "D" or column == "K":
-                    adjusted_width = (max_length + 2)
-                elif column == "C":
-                    adjusted_width = 100
-                else:
-                    adjusted_width = (max_length + 2) * 1.8
-                sheet.column_dimensions[column].width = adjusted_width
+                url_img = dictionnaire['Image']
+                name_img = dictionnaire['Nom']
+                image_download(url_img, name_img, path_img)
+        
         
 
 
 
         print(f"l'impression des données pour la catégorie {categorie} a bien été effectuée.")
-        fichier.save(f"Categories/{categorie}.xlsx")
+        
 
 
 
