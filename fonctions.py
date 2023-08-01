@@ -143,6 +143,58 @@ def image_download(url_image, article_name, image_folder):
     else:
         print(f"ERREUR : {reponse.status_code}")
 
+def get_rates(a_block_informations_of_book:list)->str:
+    """
+    Cette fonction permet de transformer une note alphabétique en numérique.
+    Elle prend en paramètre une liste contenant la note à transformer.
+    Elle retourne une chaine de caractère (la note en numérique)
+    
+    """
+    for informations in a_block_informations_of_book:
+        rate = informations.select_one('p[class*="star-rating"]')['class'][1]
+
+    match rate:
+        case "One":
+            rate = "1"
+        case "Two":
+            rate = "2"
+        case "Three":
+            rate = "3"
+        case "Four":
+            rate = "4"
+        case "Five":
+            rate = "5"
+        case _:
+            rate = "aucune note"
+    return rate
+
+def generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url)->dict:
+    dictionnary = {}
+
+    dictionnary["Nom"]           = article_name
+    dictionnary["Note"]          = rate
+    dictionnary["Description"]   = description
+    for data in informations_table:
+        header = data.get_text(",", True).split(",")
+        if len(header) > 1:
+            match header[0]:
+                case "Price (excl. tax)":
+                    price_exclude_tax = header[0].replace('Price' ,"Price (£) ")
+                    dictionnary[price_exclude_tax] = header[1].removeprefix("£")
+                case "Price (incl. tax)":
+                    price_include_tax = header[0].replace('Price' ,"Price (£) ")
+                    dictionnary[price_include_tax] = header[1].removeprefix("£")
+                case "Tax":
+                    tax = header[0] + " (£)"
+                    dictionnary[tax] = header[1].removeprefix("£")
+                case "Availability":
+                    number_book_in_stock = header[1].removeprefix("In stock (").removesuffix(" available)")
+                    dictionnary[header[0]] = number_book_in_stock
+                case _:
+                    dictionnary[header[0]] = header[1]
+    dictionnary["Image"]         = image_url
+
+    return dictionnary
 
 def get_informations_book(book_url):
     """
@@ -161,22 +213,7 @@ def get_informations_book(book_url):
 
     # récuperation des notes
     block_article = soup('div', class_="product_main")
-    for informations in block_article:
-        rate = informations.select_one('p[class*="star-rating"]')['class'][1]
-
-    match rate:
-        case "One":
-            rate = "1"
-        case "Two":
-            rate = "2"
-        case "Three":
-            rate = "3"
-        case "Four":
-            rate = "4"
-        case "Five":
-            rate = "5"
-        case _:
-            rate = "aucune note"
+    rate = get_rates(block_article)
 
     # description
     if not soup.find("div", id="product_description"):
@@ -193,30 +230,7 @@ def get_informations_book(book_url):
     image_url = bloc_image.div.div.div.img['src'].replace("../../", URL_HOME)
 
     # création dictionnaire
-    dictionnary_informations_book = {}
-
-    dictionnary_informations_book["Nom"]           = article_name
-    dictionnary_informations_book["Note"]          = rate
-    dictionnary_informations_book["Description"]   = description
-    for data in informations_table:
-        header = data.get_text(",", True).split(",")
-        if len(header) > 1:
-            match header[0]:
-                case "Price (excl. tax)":
-                    price_exclude_tax = header[0].replace('Price' ,"Price (£) ")
-                    dictionnary_informations_book[price_exclude_tax] = header[1].removeprefix("£")
-                case "Price (incl. tax)":
-                    price_include_tax = header[0].replace('Price' ,"Price (£) ")
-                    dictionnary_informations_book[price_include_tax] = header[1].removeprefix("£")
-                case "Tax":
-                    tax = header[0] + " (£)"
-                    dictionnary_informations_book[tax] = header[1].removeprefix("£")
-                case "Availability":
-                    number_book_in_stock = header[1].removeprefix("In stock (").removesuffix(" available)")
-                    dictionnary_informations_book[header[0]] = number_book_in_stock
-                case _:
-                    dictionnary_informations_book[header[0]] = header[1]
-    dictionnary_informations_book["Image"]         = image_url
+    dictionnary_informations_book = generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url)
 
     return dictionnary_informations_book
 
