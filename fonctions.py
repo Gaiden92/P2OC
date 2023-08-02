@@ -38,7 +38,7 @@ def getAllCategoriesTitles(url:str)-> dict:
         tab_links.append(link)
 
     # création du dictionnaire
-    dictionnary = dict(zip(tab_titles,tab_links))
+    dictionnary = dict(zip(tab_titles[0:1],tab_links[0:1]))
 
     return dictionnary
 
@@ -52,15 +52,12 @@ def create_excel_files_by_categories_names(folder_categories_name: str, dictionn
         - le dictionnaire dont les clefs seront les noms des fichiers excels à créer
 
     """
-    nb_categories = len(dictionnary_categories_names_and_url)
-    counter = 0
-    for categorie_name in dictionnary_categories_names_and_url.keys():
-        file = open(f"{folder_categories_name}/{categorie_name}.csv", "w")
+    for index, category_name in enumerate(dictionnary_categories_names_and_url.keys()):
+        file = open(f"{folder_categories_name}/{category_name}.csv", "w")
         file.close()
-        counter += 1
-        print(f"Création du fichier {categorie_name}. {counter}/{nb_categories}")
+        print(f"Création du fichier {category_name}. {index+1}/{len(dictionnary_categories_names_and_url)}")
 
-    if counter == nb_categories:
+    if index == len(dictionnary_categories_names_and_url):
         return True
     else:
         return False
@@ -99,10 +96,11 @@ def get_links_articles_for_one_categorie(url_article, tab, numero_page=1):
     # récupération des balises h3 et de leurs nombres par pages
     all_h3 = soup.find_all('h3')
 
-    for h3 in all_h3:
+    for index, h3 in enumerate(all_h3):
+
         article_link = h3.a["href"]
         tab.append(article_link.replace("../../../", f"{URL_HOME}catalogue/"))
-        print(f"Récupération de l'url du livre : {h3.a.text}.")
+        print(f"Récupération de l'url du livre : {h3.a.text}. {index+1}/{len(all_h3)}")
         
     # vérififcation d'un bouton next sur la page
     if not is_many_pages(soup):
@@ -119,10 +117,10 @@ def get_links_articles_for_one_categorie(url_article, tab, numero_page=1):
 
 def get_links_articles_by_categories(dict_categories_and_links):
     dict_urls_by_categories = {}
-    for categorie, link in dict_categories_and_links.items():
+    for category, link in dict_categories_and_links.items():
         list_urls_by_categories = []
-        print(f"Récupération des urls des livres pour la catégorie {categorie}.")
-        dict_urls_by_categories[categorie] = get_links_articles_for_one_categorie(link, list_urls_by_categories ,1)
+        print(f"Récupération des urls des livres pour la catégorie {category}.")
+        dict_urls_by_categories[category] = get_links_articles_for_one_categorie(link, list_urls_by_categories ,1)
 
     return dict_urls_by_categories
 
@@ -161,17 +159,16 @@ def get_rates(a_block_informations_of_book:list)->str:
         case "Five":
             rate = "5"
         case _:
-            rate = "aucune note"
+            rate = "no rate"
     return rate
 
 def generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url, book_category,book_url)->dict:
     dictionnary = {}
 
-    dictionnary["Url produit"]   = book_url
-    dictionnary["Nom"]           = article_name
+    dictionnary["Url"]   = book_url
+    dictionnary["Name"]  = article_name
     
     for data in informations_table:
-
         header = data.get_text(",", True).split(",")
         
         if len(header) > 1:
@@ -189,13 +186,12 @@ def generate_dictionnary_informations_book(article_name, rate, description, info
                 case "Availability":
                     number_book_in_stock = header[1].removeprefix("In stock (").removesuffix(" available)")
                     dictionnary[header[0]] = number_book_in_stock
-            
-
                 case _:
                     dictionnary[header[0]] = header[1]
+
     dictionnary["Description"]   = description
-    dictionnary["Catégorie"]     = book_category
-    dictionnary["Note"]          = rate
+    dictionnary["Category"]      = book_category
+    dictionnary["Rate"]          = rate
     dictionnary["Image"]         = image_url
 
 
@@ -204,7 +200,7 @@ def generate_dictionnary_informations_book(article_name, rate, description, info
 def get_informations_book(book_url, book_category):
     """
     Cette fonction permet de récuperer les informations d'un livre à partir de son url.
-    Elle prend en paramètre l'url du livre en question.
+    Elle prend en paramètre l'url du livre en question ainsi que sa catégorie.
     Elle retourne ces informations dans un dictionnaire
 
     """
@@ -222,18 +218,17 @@ def get_informations_book(book_url, book_category):
 
     # description
     if not soup.find("div", id="product_description"):
-        description = "aucune description" 
+        description = "no description" 
     else:
         description = soup.find("div", id="product_description").find_next('p').text
     description = description.replace(",", "")
 
-    # tableau infos
+    # tableau informations
     informations_table = soup.find("table", class_="table table-striped")
     
-
     # image
-    bloc_image = soup.find('div', id="product_gallery")
-    image_url = bloc_image.div.div.div.img['src'].replace("../../", URL_HOME)
+    block_image = soup.find('div', id="product_gallery")
+    image_url = block_image.div.div.div.img['src'].replace("../../", URL_HOME)
 
     # url du produit
     product_page_url = book_url
@@ -250,40 +245,29 @@ def get_informations_book(book_url, book_category):
 
 def save_data_by_categorie(dict_url:dict):
     os.makedirs(f"Categories/Images", exist_ok=True)
-    for categorie, liste_url in dict_url.items():
-        os.makedirs(f"Categories/Images/{categorie}", exist_ok=True)
-        path_img = f"Images/{categorie}/"
-        liste_infos_articles_categorie = []
+    for category, liste_url in dict_url.items():
+        os.makedirs(f"Categories/Images/{category}", exist_ok=True)
+        path_img = f"Images/{category}/"
+        liste_infos_articles_category = []
         
-        for url in liste_url:
-            print(f"récupération infos par livres de la catégorie {categorie} en cours...")
-            liste_infos_articles_categorie.append(get_informations_book(url, categorie))
-        
-        print(f"impression des données de la catégorie {categorie} en cours ...")
 
-        for dictionnaire in liste_infos_articles_categorie:
-            with open(f'Categories/{categorie}.csv', 'w', encoding='utf-8', newline='') as f:
+        for index, url in enumerate(liste_url):
+            print(f"Récupération des informations des livres de la catégorie {category} en cours... {index+1}/{len(liste_url)}")
+            liste_infos_articles_category.append(get_informations_book(url, category))
+        
+        print(f"Impression des données de la catégorie {category} en cours ...")
+
+        for dictionnaire in liste_infos_articles_category:
+            with open(f'Categories/{category}.csv', 'w', encoding='utf-8', newline='') as f:
                 fieldnames = dictionnaire.keys()
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
-                [writer.writerow(dictionnary) for dictionnary in liste_infos_articles_categorie]
+                [writer.writerow(dictionnary) for dictionnary in liste_infos_articles_category]
                 # for dictionnary in liste_infos_articles_categorie:
                 #     writer.writerow(dictionnary)
 
                 url_img = dictionnaire['Image']
-                name_img = dictionnaire['Nom']
+                name_img = dictionnaire['Name']
                 image_download(url_img, name_img, path_img)
         
-        
-
-
-
-        print(f"l'impression des données pour la catégorie {categorie} a bien été effectuée.")
-        
-
-
-
-
-
-
-
+        print(f"L'impression des données pour la catégorie {category} a bien été effectuée.")
