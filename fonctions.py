@@ -1,7 +1,9 @@
 from bs4 import BeautifulSoup
-import requests, os
+import requests, os, re, random
 import csv
 
+connect_timeout = 0.1
+read_timeout = 10
 
 URL_HOME = "https://books.toscrape.com/"
 
@@ -13,8 +15,8 @@ def getAllCategoriesTitles(url:str)-> dict:
 
     """ 
 
-    CONTENT_BODY_HOME = requests.get(url).text
-    reponse = requests.get(url)
+    CONTENT_BODY_HOME = requests.get(url,timeout=(connect_timeout, read_timeout)).text
+
 
     soup = BeautifulSoup(CONTENT_BODY_HOME, "html.parser")
 
@@ -38,7 +40,7 @@ def getAllCategoriesTitles(url:str)-> dict:
         tab_links.append(link)
 
     # création du dictionnaire
-    dictionnary = dict(zip(tab_titles[0:1],tab_links[0:1]))
+    dictionnary = dict(zip(tab_titles,tab_links))
 
     return dictionnary
 
@@ -127,15 +129,16 @@ def get_links_articles_by_categories(dict_categories_and_links):
 
 def image_download(url_image, article_name, image_folder):
     reponse = requests.get(url_image)
+    img_name = re.sub(r'[^A-Za-z0-9 ]+', '', article_name[0:60])
+
+    salt = random.randint(0,100)
     
-    if reponse.status_code == 200:
-        f = open(f'Categories/{image_folder}/{url_image[-36:]}', 'wb')
-        f.write(reponse.content)
-        f.close()
-        print(f"Téléchargement de l'image du livre {article_name} terminée.")
-        return True
-    else:
-        print(f"ERREUR : {reponse.status_code}")
+    f = open(f'Categories/{image_folder}/{img_name}-{salt}.jpg', 'wb')
+    f.write(reponse.content)
+    f.close()
+    print(f"Téléchargement de l'image du livre {article_name} terminée.")
+
+    
 
 def get_rates(a_block_informations_of_book:list)->str:
     """
@@ -221,7 +224,7 @@ def get_informations_book(book_url, book_category):
         description = "no description" 
     else:
         description = soup.find("div", id="product_description").find_next('p').text
-    description = description.replace(",", "")
+    description = description.replace(",", " ").replace(";"," ")
 
     # tableau informations
     informations_table = soup.find("table", class_="table table-striped")
@@ -255,16 +258,17 @@ def save_data_by_categorie(dict_url:dict):
             print(f"Récupération des informations des livres de la catégorie {category} en cours... {index+1}/{len(liste_url)}")
             liste_infos_articles_category.append(get_informations_book(url, category))
         
-        print(f"Impression des données de la catégorie {category} en cours ...")
+        print(f"Sauvegarde des données de la catégorie {category} en cours ...")
 
         for dictionnaire in liste_infos_articles_category:
             with open(f'Categories/{category}.csv', 'w', encoding='utf-8', newline='') as f:
                 fieldnames = dictionnaire.keys()
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_ALL)
+                
                 writer.writeheader()
-                [writer.writerow(dictionnary) for dictionnary in liste_infos_articles_category]
-                # for dictionnary in liste_infos_articles_categorie:
-                #     writer.writerow(dictionnary)
+                # [writer.writerow(dictionnary) for dictionnary in liste_infos_articles_category]
+                for dictionnary in liste_infos_articles_category:
+                    writer.writerow(dictionnary)
 
                 url_img = dictionnaire['Image']
                 name_img = dictionnaire['Name']

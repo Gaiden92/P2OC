@@ -1,6 +1,6 @@
 from fonctions import *
-
-
+import time
+start_time = int(time.time())
 # création d'un dictionnaire contenant les noms des catagories et leurs liens
 dictionnary_categories_name_and_url = getAllCategoriesTitles(URL_HOME)
 
@@ -18,3 +18,6 @@ dictionnary_all_books_urls_by_category = get_links_articles_by_categories(dictio
 
 # impression des données dans les fichiers excels et téléchargements des images
 save_data_by_categorie(dictionnary_all_books_urls_by_category)
+end_time = int(time.time())
+elapsed = end_time - start_time
+print(f"Le programme s'est executé en : {elapsed}s")
