@@ -2,8 +2,6 @@ from bs4 import BeautifulSoup
 import requests, os, re, random
 import csv
 
-connect_timeout = 0.1
-read_timeout = 10
 
 URL_HOME = "https://books.toscrape.com/"
 
@@ -15,7 +13,7 @@ def getAllCategoriesTitles(url:str)-> dict:
 
     """ 
 
-    CONTENT_BODY_HOME = requests.get(url,timeout=(connect_timeout, read_timeout)).text
+    CONTENT_BODY_HOME = requests.get(url).text
 
 
     soup = BeautifulSoup(CONTENT_BODY_HOME, "html.parser")
@@ -118,6 +116,11 @@ def get_links_articles_for_one_categorie(url_article, tab, numero_page=1):
 
 
 def get_links_articles_by_categories(dict_categories_and_links):
+    """
+    Cette fonction permet de récuperer les liens des livres par catégorie.
+    Elle prend en paramètre un dictionnaire contenant les urls des catégories.
+    Elle retourne un dictionnaire contenant une catégorie en clef et une liste des liens des livres en valeur 
+    """
     dict_urls_by_categories = {}
     for category, link in dict_categories_and_links.items():
         list_urls_by_categories = []
@@ -128,6 +131,14 @@ def get_links_articles_by_categories(dict_categories_and_links):
 
 
 def image_download(url_image, article_name, image_folder):
+    """
+    Cette fonction permet de télécharger une image.
+    Elle prend en paramètre :
+        - l'url de l'image du livre
+        - le nom du livre
+        - le répertoire où télécharger l'image
+    Elle ne retourne aucune valeur.
+    """
     reponse = requests.get(url_image)
     img_name = re.sub(r'[^A-Za-z0-9 ]+', '', article_name[0:60])
 
@@ -142,9 +153,9 @@ def image_download(url_image, article_name, image_folder):
 
 def get_rates(a_block_informations_of_book:list)->str:
     """
-    Cette fonction permet de transformer une note alphabétique en numérique.
+    Cette fonction permet de passer la représentation verbale d'une note en sa répresentation numérique.
     Elle prend en paramètre une liste contenant la note à transformer.
-    Elle retourne une chaine de caractère (la note en numérique)
+    Elle retourne une chaine de caractère (la note en représentation numérique)
     
     """
     for informations in a_block_informations_of_book:
@@ -165,7 +176,21 @@ def get_rates(a_block_informations_of_book:list)->str:
             rate = "no rate"
     return rate
 
-def generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url, book_category,book_url)->dict:
+def generate_dictionnary_informations_book(book_url, book_category, article_name, rate, description, informations_table, image_url)->dict:
+    """
+    Cette fonction permet de récuperer les données d'un livre et de les stocker dans un dictionnaire.
+    Elle prend en paramètre :
+        - l'url du produit
+        - sa catégorie
+        - son nom 
+        - sa note
+        - sa description
+        - la liste de ses caractéristiques (UPC, Prix, disponibilitée,...)
+        - l'url de l'image de sa couverture
+
+    Elle retourne les informations dans un dictionnaire.
+
+    """
     dictionnary = {}
 
     dictionnary["Url"]   = book_url
@@ -204,7 +229,7 @@ def get_informations_book(book_url, book_category):
     """
     Cette fonction permet de récuperer les informations d'un livre à partir de son url.
     Elle prend en paramètre l'url du livre en question ainsi que sa catégorie.
-    Elle retourne ces informations dans un dictionnaire
+    Elle retourne ces informations sous la forme d'un dictionnaire
 
     """
     requete = requests.get(book_url)
@@ -240,13 +265,19 @@ def get_informations_book(book_url, book_category):
     category = book_category
 
     # création dictionnaire
-    dictionnary_informations_book = generate_dictionnary_informations_book(article_name, rate, description, informations_table, image_url, category, product_page_url)
+    dictionnary_informations_book = generate_dictionnary_informations_book(product_page_url, category, article_name, rate, description, informations_table, image_url)
 
     return dictionnary_informations_book
 
 
 
 def save_data_by_categorie(dict_url:dict):
+    """
+    Cette fonction permet de sauvegarder des données dans des fichiers CSV ainsi que des images par catégories.
+    Elle prend en paramètre un dictionnaire contenant les urls des livres par catégories.
+    Elle ne retourne aucune valeur.
+    """
+
     os.makedirs(f"Categories/Images", exist_ok=True)
     for category, liste_url in dict_url.items():
         os.makedirs(f"Categories/Images/{category}", exist_ok=True)
@@ -274,4 +305,4 @@ def save_data_by_categorie(dict_url:dict):
                 name_img = dictionnaire['Name']
                 image_download(url_img, name_img, path_img)
         
-        print(f"L'impression des données pour la catégorie {category} a bien été effectuée.")
+        print(f"La sauvegarde des données pour la catégorie {category} a bien été effectuée.")
