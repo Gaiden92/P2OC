@@ -40,7 +40,7 @@ Implementation du processus ETL:
 
 ### Créer l'environnement virtuel
 
-- `cd P2`
+- `cd P2OC`
 - `python -m venv env`
 - Activer l'environnement `source env/bin/activate` (macOS and Linux) ou `env\Scripts\activate` (Windows)
     
