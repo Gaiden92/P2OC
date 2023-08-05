@@ -5,6 +5,17 @@ import csv
 
 URL_HOME = "https://books.toscrape.com/"
 
+def timer(start:int, end:int):
+    """
+    Fonction permettant de calculer le temps écoulé pour l'execution du programme.
+    Elle prend en paramètre :
+        - un nombre représentant le début du chronomètre.
+        - un nombre représentant l'arrèt du chronomètre.
+    Elle ne retourne aucune valeur.
+    """
+    elapsed = end - start
+    print(f"Le programme s'est executé en : {elapsed//60} minutes")
+
 def getAllCategoriesTitles(url:str)-> dict:
     """
     Cette fonction permet de récuperer les titres et les liens de chaque catégories de la page d'accueil.
@@ -14,7 +25,6 @@ def getAllCategoriesTitles(url:str)-> dict:
     """ 
 
     CONTENT_BODY_HOME = requests.get(url).text
-
 
     soup = BeautifulSoup(CONTENT_BODY_HOME, "html.parser")
 
@@ -52,6 +62,12 @@ def create_excel_files_by_categories_names(folder_categories_name: str, dictionn
         - le dictionnaire dont les clefs seront les noms des fichiers excels à créer
 
     """
+    try:
+        os.mkdir(folder_categories_name)
+
+    except FileExistsError:
+        print("Le dossier existe déjà.")
+
     for index, category_name in enumerate(dictionnary_categories_names_and_url.keys()):
         file = open(f"{folder_categories_name}/{category_name}.csv", "w")
         file.close()
@@ -75,8 +91,6 @@ def is_many_pages(soup:object)->bool:
     return li_next
 
 
-
-# tant qu'il y a de h3 (livres) on places les liens et les titles de la balise "a" dans le dictionnaire
 
 def get_links_articles_for_one_categorie(url_article, tab, numero_page=1):
     """
@@ -107,8 +121,8 @@ def get_links_articles_for_one_categorie(url_article, tab, numero_page=1):
         return tab
     elif is_many_pages(soup) and numero_page == 1:
         url_article = url_article.replace("index.html", f"page-{numero_page}.html")
-        empty_tab = []
-        return get_links_articles_for_one_categorie(url_article, empty_tab, numero_page+1)
+        new_list = []
+        return get_links_articles_for_one_categorie(url_article, new_list, numero_page+1)
     elif is_many_pages(soup):
         url_article = url_article.replace(f"page-{numero_page-1}.html", f"page-{numero_page}.html")
         return get_links_articles_for_one_categorie(url_article,tab, numero_page+1)
@@ -249,7 +263,7 @@ def get_informations_book(book_url, book_category):
         description = "no description" 
     else:
         description = soup.find("div", id="product_description").find_next('p').text
-    description = description.replace(",", " ").replace(";"," ")
+    description = description.replace(",", "").replace(";","")
 
     # tableau informations
     informations_table = soup.find("table", class_="table table-striped")
@@ -270,7 +284,6 @@ def get_informations_book(book_url, book_category):
     return dictionnary_informations_book
 
 
-
 def save_data_by_categorie(dict_url:dict):
     """
     Cette fonction permet de sauvegarder des données dans des fichiers CSV ainsi que des images par catégories.
@@ -278,31 +291,32 @@ def save_data_by_categorie(dict_url:dict):
     Elle ne retourne aucune valeur.
     """
 
+    # Création du répertoire image 
     os.makedirs(f"Categories/Images", exist_ok=True)
     for category, liste_url in dict_url.items():
+        # Création d'un répertoire d'images pour chaque catégorie
         os.makedirs(f"Categories/Images/{category}", exist_ok=True)
         path_img = f"Images/{category}/"
-        liste_infos_articles_category = []
-        
 
+        list_of_dictionnary_of_book_informations = []
+        
         for index, url in enumerate(liste_url):
             print(f"Récupération des informations des livres de la catégorie {category} en cours... {index+1}/{len(liste_url)}")
-            liste_infos_articles_category.append(get_informations_book(url, category))
+            list_of_dictionnary_of_book_informations.append(get_informations_book(url, category))
         
         print(f"Sauvegarde des données de la catégorie {category} en cours ...")
 
-        for dictionnaire in liste_infos_articles_category:
+        for dictionnary in list_of_dictionnary_of_book_informations:
             with open(f'Categories/{category}.csv', 'w', encoding='utf-8', newline='') as f:
-                fieldnames = dictionnaire.keys()
+                fieldnames = dictionnary.keys()
                 writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_ALL)
-                
                 writer.writeheader()
-                # [writer.writerow(dictionnary) for dictionnary in liste_infos_articles_category]
-                for dictionnary in liste_infos_articles_category:
-                    writer.writerow(dictionnary)
+                # [writer.writerow(row) for row in list_of_dictionnary_of_book_informations]
+                for row in list_of_dictionnary_of_book_informations:
+                    writer.writerow(row)
 
-                url_img = dictionnaire['Image']
-                name_img = dictionnaire['Name']
+                url_img = dictionnary['Image']
+                name_img = dictionnary['Name']
                 image_download(url_img, name_img, path_img)
         
         print(f"La sauvegarde des données pour la catégorie {category} a bien été effectuée.")
