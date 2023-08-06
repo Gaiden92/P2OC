@@ -18,7 +18,7 @@ def timer(start:int, end:int):
     elapsed = end - start
     print(f"Le programme s'est executé en : {elapsed//60} minutes")
 
-def getAllCategoriesTitles(url:str)-> dict:
+def get_all_categories_titles(url:str)-> dict:
     """
     Cette fonction permet de récuperer les titres et les liens de chaque catégories de la page d'accueil.
     Elle prend en paramètre l'url de la page d'acceuil.
@@ -50,7 +50,7 @@ def getAllCategoriesTitles(url:str)-> dict:
         tab_links.append(link)
 
     # création du dictionnaire
-    dictionnary = dict(zip(tab_titles[0:2],tab_links[0:2]))
+    dictionnary = dict(zip(tab_titles[0:1],tab_links[0:1]))
 
     return dictionnary
 
@@ -67,7 +67,7 @@ def is_many_pages(soup:object)->bool:
 
 
 
-def get_links_articles_for_one_categorie(url_article:str, tab:list, numero_page:int=1)->list:
+def get_links_books_for_one_categorie(url_article:str, tab:list, numero_page:int=1)->list:
     """
     Cette fonction permets de récuperer les url des livres par catégorie.
     Elle prend en paramètre:
@@ -77,8 +77,8 @@ def get_links_articles_for_one_categorie(url_article:str, tab:list, numero_page:
     """
     
     #récuperation de l'url de la page courant et instanciation d'un objet "soup"
-    reponse = requests.get(url_article)
-    CONTENT_CATEGORY_PAGE = reponse.text
+    request = requests.get(url_article)
+    CONTENT_CATEGORY_PAGE = request.text
 
     soup = BeautifulSoup(CONTENT_CATEGORY_PAGE, "html.parser")
 
@@ -87,8 +87,8 @@ def get_links_articles_for_one_categorie(url_article:str, tab:list, numero_page:
 
     for index, h3 in enumerate(all_h3):
 
-        article_link = h3.a["href"]
-        tab.append(article_link.replace("../../../", f"{URL_HOME}catalogue/"))
+        book_link = h3.a["href"]
+        tab.append(book_link.replace("../../../", f"{URL_HOME}catalogue/"))
         print(f"Récupération de l'url du livre : {h3.a.text}. {index+1}/{len(all_h3)}")
         
     # vérififcation d'un bouton next sur la page
@@ -97,14 +97,14 @@ def get_links_articles_for_one_categorie(url_article:str, tab:list, numero_page:
     elif is_many_pages(soup) and numero_page == 1:
         url_article = url_article.replace("index.html", f"page-{numero_page}.html")
         new_list = []
-        return get_links_articles_for_one_categorie(url_article, new_list, numero_page+1)
+        return get_links_books_for_one_categorie(url_article, new_list, numero_page+1)
     elif is_many_pages(soup):
         url_article = url_article.replace(f"page-{numero_page-1}.html", f"page-{numero_page}.html")
-        return get_links_articles_for_one_categorie(url_article,tab, numero_page+1)
+        return get_links_books_for_one_categorie(url_article,tab, numero_page+1)
 
 
 
-def get_links_articles_by_categories(dict_categories_and_links:dict)->dict:
+def get_links_books_by_categories(dict_categories_and_links:dict)->dict:
     """
     Cette fonction permet de récuperer tous les liens des livres des différentes catégories.
     Elle prend en paramètre un dictionnaire contenant les urls des catégories.
@@ -114,12 +114,12 @@ def get_links_articles_by_categories(dict_categories_and_links:dict)->dict:
     for category, link in dict_categories_and_links.items():
         list_urls_by_categories = []
         print(f"Extraction des urls des livres pour la catégorie {category}.")
-        dict_urls_by_categories[category] = get_links_articles_for_one_categorie(link, list_urls_by_categories,1)
+        dict_urls_by_categories[category] = get_links_books_for_one_categorie(link, list_urls_by_categories,1)
 
     return dict_urls_by_categories
 
 
-def image_download(url_image:str, article_name:str, image_folder:str):
+def image_download(url_image:str, book_name:str, image_folder:str):
     """
     Cette fonction permet de télécharger une image.
     Elle prend en paramètre :
@@ -129,14 +129,14 @@ def image_download(url_image:str, article_name:str, image_folder:str):
     Elle ne retourne aucune valeur.
     """
     response = requests.get(url_image)
-    img_name = re.sub(r'[^A-Za-z0-9 ]+', '', article_name[0:60])
+    img_name = re.sub(r'[^A-Za-z0-9 ]+', '', book_name[0:60])
     img_name = img_name.lower().replace(' ', '-')
     salt = random.randint(0,100)
     
     f = open(f'{DATA_FOLDER_NAME}/{image_folder}/{img_name}-{salt}.jpg', 'wb')
     f.write(response.content)
     f.close()
-    print(f"Téléchargement de l'image du livre {article_name} terminée.")
+    print(f"Téléchargement de l'image du livre {book_name} terminée.")
 
     
 
@@ -220,10 +220,10 @@ def get_informations_book(book_url:str, book_category:str)->dict:
     Elle retourne ces informations sous la forme d'un dictionnaire
 
     """
-    requete = requests.get(book_url)
-    requete.encoding = requete.apparent_encoding
+    request = requests.get(book_url)
+    request.encoding = request.apparent_encoding
 
-    soup = BeautifulSoup(requete.text, "html.parser")
+    soup = BeautifulSoup(request.text, "html.parser")
 
     # titre
     book_name = soup.h1.text
@@ -259,24 +259,29 @@ def get_informations_book(book_url:str, book_category:str)->dict:
 
 
 def save_data(list_of_dictionnary_of_book_informations:list, category_name:str, path_img:str):
+    """
+    Cette fonction permet de sauvegarder des données dans des fichiers CSV et de sauvegarder l'image d'un livre.
+    Elle prend en paramètre une liste de dictionnaire contenant les informations des livres d'une catégorie.
+    Elle ne retourne aucune valeur.
+    """
+    for dictionnary_book_informations in list_of_dictionnary_of_book_informations:
 
-    for dictionnary in list_of_dictionnary_of_book_informations:
         with open(f'{DATA_FOLDER_NAME}/{category_name}.csv', 'w', encoding='utf-8', newline='') as f:
-            fieldnames = dictionnary.keys()
+            fieldnames = dictionnary_book_informations.keys()
             writer = csv.DictWriter(f, fieldnames=fieldnames,delimiter=',', quoting=csv.QUOTE_ALL)
             writer.writeheader()
-            # [writer.writerow(row) for row in list_of_dictionnary_of_book_informations]
+
             for row in list_of_dictionnary_of_book_informations:
                 writer.writerow(row)
 
-            url_img = dictionnary['Image']
-            name_img = dictionnary['Name']
+            url_img = dictionnary_book_informations['Image']
+            name_img = dictionnary_book_informations['Name']
             image_download(url_img, name_img, path_img)
 
 
 def load_data(dict_url:dict):
     """
-    Cette fonction permet de sauvegarder des données dans des fichiers CSV ainsi que des images par catégories.
+    Cette fonction permet de sauvegarder des données dans des fichiers csv en parcourant les catégories d'un dictionnaire.
     Elle prend en paramètre un dictionnaire contenant les urls des livres par catégories.
     Elle ne retourne aucune valeur.
     """
