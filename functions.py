@@ -50,7 +50,7 @@ def get_all_categories_titles(url:str)-> dict:
         tab_links.append(link)
 
     # création du dictionnaire
-    dictionnary = dict(zip(tab_titles[0:1],tab_links[0:1]))
+    dictionnary = dict(zip(tab_titles,tab_links))
 
     return dictionnary
 
