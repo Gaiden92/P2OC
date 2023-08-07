@@ -1,7 +1,11 @@
 # Environnement virtuel
 /env
+
 # Dossier Data
 /Data
 
 # Pycache
 /__pycache__
+
+# Options vscode
+/.vscode
